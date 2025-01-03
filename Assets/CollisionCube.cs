@@ -9,9 +9,9 @@ public class TankCollision : MonoBehaviour
             Debug.Log("Tank hit the border!");
             // Add behavior here (e.g., stop movement, bounce, etc.)
         }
-        else:
+        else
         {
-            console.Log("Tank collided with something unknown");
+            Debug.Log("Tank collided with something unknown");
         }
     }
 }
