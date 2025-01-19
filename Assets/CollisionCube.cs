@@ -2,9 +2,9 @@ using UnityEngine;
 
 public class TankCollision : MonoBehaviour
 {
-    private void OnCollisionEnter(Collision collision)
+    void OnTriggerEnter(Collider other)
     {
-        if (collision.gameObject.CompareTag("BorderCube"))
+        if (other.gameObject.tag == "Obstacle")
         {
             Debug.Log("Tank hit the border!");
             // Add behavior here (e.g., stop movement, bounce, etc.)
