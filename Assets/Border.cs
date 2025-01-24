@@ -5,7 +5,7 @@ public class CreateBorder : MonoBehaviour
     public GameObject borderCubePrefab; // Reference to the cube prefab
     public float planeWidth = 18f;      // Width of the plane
     public float planeLength = 10f;     // Length of the plane
-    public float cubeHeight = 2.5f;     // Height to position cubes on
+    public float cubeHeight = 5f;     // Height to position cubes on
 
     void Start()
     {

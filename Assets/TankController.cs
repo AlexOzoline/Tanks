@@ -80,21 +80,18 @@ public class TankController : MonoBehaviour
     void OnCollisionEnter(Collision collision)
     {
         // Check if the object collided with the tank is a bullet
+        Debug.Log("Something is colliding..." + collision.gameObject.tag);
         if (collision.gameObject.CompareTag("Bullet")) // Ensure the bullet prefab has this tag
         {
             // Destroy the tank upon collision
             Destroy(gameObject); // Destroy the tank object
             Debug.Log("Tank was hit by a bullet and destroyed!");
         }
-    }
-
-    // Optional: Stop movement when hitting obstacles
-    void OnCollisionEnterObstacle(Collision collision)
-    {
         if (collision.gameObject.CompareTag("Obstacle"))
         {
             rb.linearVelocity = Vector3.zero; // Stop the tank from moving
             Debug.Log("Tank hit an obstacle!");
         }
     }
+
 }
