@@ -13,6 +13,8 @@ public class TankController : MonoBehaviour
     private Rigidbody rb;
     private Vector3 targetVelocity;  // To store the desired velocity for smooth movement
     private Vector3 currentVelocity; // The current velocity to smoothly transition
+    private bool isCollidingWithObstacle = false; // Track if the tank is colliding with an obstacle
+    private Vector3 obstacleNormal; // Store the normal vector of the obstacle's surface
 
     void Start()
     {
@@ -31,6 +33,20 @@ public class TankController : MonoBehaviour
 
         // Calculate target movement (forward/backward)
         Vector3 movement = transform.forward * move * speed;
+
+        // If colliding with an obstacle, restrict movement based on the obstacle's normal
+        if (isCollidingWithObstacle)
+        {
+            // Project the movement vector onto the obstacle's surface
+            movement = Vector3.ProjectOnPlane(movement, obstacleNormal);
+
+            // Ensure the tank can only move backward (away from the obstacle)
+            float dotProduct = Vector3.Dot(movement.normalized, obstacleNormal);
+            if (dotProduct < 0) // If moving into the obstacle, stop movement
+            {
+                movement = Vector3.zero;
+            }
+        }
 
         // Smoothly accelerate or decelerate the current velocity toward the target velocity
         currentVelocity = Vector3.MoveTowards(currentVelocity, movement, speed * Time.fixedDeltaTime);
@@ -76,22 +92,41 @@ public class TankController : MonoBehaviour
         }
     }
 
-    // Detect collisions with bullets
+    // Detect collisions with obstacles
     void OnCollisionEnter(Collision collision)
     {
-        // Check if the object collided with the tank is a bullet
-        Debug.Log("Something is colliding..." + collision.gameObject.tag);
-        if (collision.gameObject.CompareTag("Bullet")) // Ensure the bullet prefab has this tag
-        {
-            // Destroy the tank upon collision
-            Destroy(gameObject); // Destroy the tank object
-            Debug.Log("Tank was hit by a bullet and destroyed!");
-        }
         if (collision.gameObject.CompareTag("Obstacle"))
         {
-            rb.linearVelocity = Vector3.zero; // Stop the tank from moving
-            Debug.Log("Tank hit an obstacle!");
+            // Set the collision flag to true
+            isCollidingWithObstacle = true;
+
+            // Store the normal vector of the obstacle's surface
+            obstacleNormal = collision.contacts[0].normal;
+
+            // Stop the tank immediately
+            rb.linearVelocity = Vector3.zero;
+            currentVelocity = Vector3.zero;
+            Debug.Log("Tank hit an obstacle and stopped!");
         }
     }
 
+    // Continuously check for collisions with obstacles
+    void OnCollisionStay(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Obstacle"))
+        {
+            // Update the obstacle's normal vector in case the tank rotates
+            obstacleNormal = collision.contacts[0].normal;
+        }
+    }
+
+    // Reset the collision flag when the tank stops colliding with the obstacle
+    void OnCollisionExit(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Obstacle"))
+        {
+            isCollidingWithObstacle = false;
+            Debug.Log("Tank is no longer colliding with an obstacle.");
+        }
+    }
 }
