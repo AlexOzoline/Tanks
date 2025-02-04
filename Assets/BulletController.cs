@@ -2,8 +2,8 @@ using UnityEngine;
 
 public class BulletController : MonoBehaviour
 {
-    public float bulletSpeed = 20f; // Speed of the bullet
-    public int maxBounces = 3; // Maximum number of bounces before the bullet is destroyed
+    public float bulletSpeed = 200f; // Speed of the bullet
+    public int maxBounces = 1; // Maximum number of bounces before the bullet is destroyed
     private int bounceCount = 0; // Current number of bounces
 
     private Rigidbody rb;
@@ -13,11 +13,15 @@ public class BulletController : MonoBehaviour
         // Get the Rigidbody component
         rb = GetComponent<Rigidbody>();
 
+        rb.linearDamping = 0f;
+        rb.angularDamping = 0f;
+
         // Lock the Y position of the bullet
-        rb.constraints = RigidbodyConstraints.FreezePositionY;
+        //rb.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ | RigidbodyConstraints.FreezeRotationY;
 
         // Set the initial velocity of the bullet
         rb.linearVelocity = transform.forward * bulletSpeed;
+        Debug.Log(transform.forward);
     }
 
     void OnCollisionEnter(Collision collision)
@@ -34,15 +38,16 @@ public class BulletController : MonoBehaviour
                 Destroy(gameObject);
                 return;
             }
-
+            Debug.Log("my forward = " + transform.forward);
             // Get the collision normal
             Vector3 collisionNormal = collision.contacts[0].normal;
+            Debug.Log("collisionNormal = " + collisionNormal);
 
             // Calculate the reflected velocity using the collision normal
-            Vector3 reflectedVelocity = Vector3.Reflect(rb.linearVelocity.normalized, collisionNormal);
-
+            Vector3 reflectedVelocity = Vector3.Reflect(transform.forward, collisionNormal);
+            Debug.Log(reflectedVelocity);
             // Remove any vertical component from the reflected velocity
-            reflectedVelocity.y = 0f;
+            //reflectedVelocity.y = 0f;
 
             // Normalize the reflected velocity and apply the bullet speed
             reflectedVelocity = reflectedVelocity.normalized * bulletSpeed;
@@ -53,7 +58,7 @@ public class BulletController : MonoBehaviour
             // Rotate the bullet to face the new direction
             transform.forward = reflectedVelocity.normalized;
         }
-        else if (collision.gameObject.CompareTag("Tank"))
+        else if (collision.gameObject.CompareTag("Tank") || collision.gameObject.CompareTag("Bullet"))
         {
             // Handle collision with the tank (if needed)
             Destroy(gameObject); // Destroy the bullet on hitting the tank

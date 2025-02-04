@@ -7,7 +7,7 @@ public class TankController : MonoBehaviour
     public float rotationSpeed = 100f; // Rotation speed
     public GameObject bulletPrefab;   // Bullet prefab reference
     public Transform cannonShootPoint; // The point from where bullets will be fired (cannon's muzzle)
-    public float bulletSpeed = 20f;  // Adjust this value to control bullet speed
+    public float bulletSpeed = 200f;  // Adjust this value to control bullet speed
     public float shootForce = 500f;   // The force to apply to the bullet when shooting
 
     private Rigidbody rb;
@@ -37,16 +37,26 @@ public class TankController : MonoBehaviour
         // If colliding with an obstacle, restrict movement based on the obstacle's normal
         if (isCollidingWithObstacle)
         {
-            // Project the movement vector onto the obstacle's surface
+            // Project the movement vector onto the obstacle's surface (removes any movement going into the wall)
             movement = Vector3.ProjectOnPlane(movement, obstacleNormal);
 
-            // Ensure the tank can only move backward (away from the obstacle)
+            // Ensure the tank can onwdly move backward (away from the obstacle)
             float dotProduct = Vector3.Dot(movement.normalized, obstacleNormal);
-            if (dotProduct < 0) // If moving into the obstacle, stop movement
+            float epsilon = 1e-2f;
+
+            // If moving into the obstacle (dot product < 0), stop that part of the movement
+            if (dotProduct < -epsilon) 
             {
-                movement = Vector3.zero;
+                // Calculate the component of the movement that's going into the wall
+                Vector3 movementIntoWall = Vector3.Project(movement, obstacleNormal);
+
+                // Subtract that component, allowing movement along the surface
+                movement = movement - movementIntoWall;
+
+                Debug.Log("Tank stopped moving into the obstacle, now sliding! Dot Product: " + dotProduct);
             }
         }
+
 
         // Smoothly accelerate or decelerate the current velocity toward the target velocity
         currentVelocity = Vector3.MoveTowards(currentVelocity, movement, speed * Time.fixedDeltaTime);
@@ -61,7 +71,7 @@ public class TankController : MonoBehaviour
 
         // Enforce constraints: Lock X/Z rotation and Y position
         rb.position = new Vector3(rb.position.x, 0f, rb.position.z); // Keep Y position at 0
-        rb.rotation = Quaternion.Euler(0f, rb.rotation.eulerAngles.y, 0f); // Lock X/Z rotation
+        //rb.rotation = Quaternion.Euler(0f, rb.rotation.eulerAngles.y, 0f); // Lock X/Z rotation
     }
 
     void Update()  // Use Update for input detection (shooting in this case)
@@ -70,7 +80,6 @@ public class TankController : MonoBehaviour
         if (Input.GetButtonDown("Fire1")) // Default: Mouse button 0 (Left-click) or Spacebar
         {
             Shoot();
-            Debug.Log("Shooting");
         }
     }
 
@@ -80,16 +89,7 @@ public class TankController : MonoBehaviour
         GameObject bullet = Instantiate(bulletPrefab, cannonShootPoint.position, cannonShootPoint.rotation);
 
         // Apply a 90-degree rotation to the bullet on the X-axis
-        bullet.transform.Rotate(90, 0, 0);  // Rotate 90 degrees on the X-axis
-
-        // Get the Rigidbody of the bullet
-        Rigidbody bulletRb = bullet.GetComponent<Rigidbody>();
-
-        // Apply velocity to the bullet in the direction the cannon is pointing
-        if (bulletRb != null)
-        {
-            bulletRb.linearVelocity = cannonShootPoint.forward * bulletSpeed; // Apply correct velocity
-        }
+        //bullet.transform.Rotate(90, 0, 0);  // Rotate 90 degrees on the X-axis
     }
 
     // Detect collisions with obstacles
@@ -103,10 +103,22 @@ public class TankController : MonoBehaviour
             // Store the normal vector of the obstacle's surface
             obstacleNormal = collision.contacts[0].normal;
 
-            // Stop the tank immediately
-            rb.linearVelocity = Vector3.zero;
-            currentVelocity = Vector3.zero;
+            // Calculate the velocity component going into the wall (the normal direction)
+            Vector3 velocityIntoWall = Vector3.Project(rb.linearVelocity, obstacleNormal);
+
+            // Remove the component that pushes into the wall, preserving movement along the wall
+            Vector3 velocityAlongWall = rb.linearVelocity - velocityIntoWall;
+
+            // Apply the adjusted velocity (no motion into the wall, but sliding along it)
+            rb.linearVelocity = velocityAlongWall;
+            currentVelocity = velocityAlongWall;  // Update the current velocity
             Debug.Log("Tank hit an obstacle and stopped!");
+        }
+
+        else if (collision.gameObject.CompareTag("Bullet"))
+        {
+            // Destroy the Tank
+            Destroy(gameObject);
         }
     }
 
