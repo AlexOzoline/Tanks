@@ -1,4 +1,5 @@
 using UnityEngine;
+using Unity.Netcode;
 
 public class BulletController : MonoBehaviour
 {
@@ -61,7 +62,7 @@ public class BulletController : MonoBehaviour
         else if (collision.gameObject.CompareTag("Tank") || collision.gameObject.CompareTag("Bullet"))
         {
             // Handle collision with the tank (if needed)
-            Destroy(gameObject); // Destroy the bullet on hitting the tank
+            NetworkObject.Destroy(gameObject); // Destroy the bullet on hitting the tank
         }
     }
 }
