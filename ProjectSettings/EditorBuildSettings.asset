@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/aaa.unity
+    path: Assets/Mutliplayer.unity
     guid: 4365a0fef6397fb4684e71c0553db5d4
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
