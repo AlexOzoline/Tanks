@@ -22,7 +22,6 @@ public class BulletController : MonoBehaviour
 
         // Set the initial velocity of the bullet
         rb.linearVelocity = transform.forward * bulletSpeed;
-        Debug.Log(transform.forward);
     }
 
     void OnCollisionEnter(Collision collision)
@@ -39,14 +38,11 @@ public class BulletController : MonoBehaviour
                 Destroy(gameObject);
                 return;
             }
-            Debug.Log("my forward = " + transform.forward);
             // Get the collision normal
             Vector3 collisionNormal = collision.contacts[0].normal;
-            Debug.Log("collisionNormal = " + collisionNormal);
 
             // Calculate the reflected velocity using the collision normal
             Vector3 reflectedVelocity = Vector3.Reflect(transform.forward, collisionNormal);
-            Debug.Log(reflectedVelocity);
             // Remove any vertical component from the reflected velocity
             //reflectedVelocity.y = 0f;
 

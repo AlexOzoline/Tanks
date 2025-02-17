@@ -13,25 +13,23 @@ public class TankControllerNet : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {   
-        Debug.Log("Am I the owner?" + IsOwner);
+        Debug.Log($"Tank {NetworkObjectId} - IsOwner: {IsOwner}");
+        rb = GetComponent<Rigidbody>();
+        if (cannonShootPoint == null)
+        {
+            cannonShootPoint = transform.Find("tanktopfixed/CannonShootPoint");
+        }
+
         if (IsOwner) 
         {
-            rb = GetComponent<Rigidbody>();
             rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ | RigidbodyConstraints.FreezePositionY;
 
-            if (cannonShootPoint == null)
-            {
-                cannonShootPoint = transform.Find("tanktopfixed/CannonShootPoint"); // Adjust to the correct child object name
-            }
         }
     }
 
     void FixedUpdate()
     {
-        if (!IsOwner) 
-        {
-            return;
-        }
+        if (!IsOwner) return;
 
         float moveInput = 0f;
         float turnInput = 0f;
@@ -51,15 +49,24 @@ public class TankControllerNet : NetworkBehaviour
 
         if (Input.GetKeyDown(KeyCode.Space) || Input.GetMouseButtonDown(0))
         {
+            Debug.Log($"Tank {NetworkObjectId} attempting to shoot.");
             ShootServerRpc();
         }
     }
 
     [ServerRpc]
-    void ShootServerRpc()
+    void ShootServerRpc(ServerRpcParams rpcParams = default)
     {
+        if (bulletPrefab == null || cannonShootPoint == null)
+        {
+            Debug.LogError("BulletPrefab or CannonShootPoint is not set!");
+            return;
+        }
+
+        Debug.Log($"Tank {NetworkObjectId} shooting on the server.");
+        
         GameObject bullet = Instantiate(bulletPrefab, cannonShootPoint.position, cannonShootPoint.rotation);
-        bullet.GetComponent<NetworkObject>().Spawn(true);
+        bullet.GetComponent<NetworkObject>().Spawn();
     }
 
     void OnCollisionEnter(Collision collision)
