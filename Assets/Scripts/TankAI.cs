@@ -1,76 +1,103 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-[RequireComponent(typeof(Rigidbody))]
 public class TankAI : MonoBehaviour
 {
-    public Transform player;  // Assign player Transform
-    public float speed = 10f; // Movement speed
-    public float rotationSpeed = 100f; // Rotation speed
-    public float stoppingDistance = 2f; // Stop near player
-    public float pathUpdateInterval = 0.5f; // How often to update path
+    private enum TaskStatus { Success, Failure, Running }
+    private enum TankState { Patrol, Chase, Attack }
 
-    private Rigidbody rb;
-    private NavMeshPath path;
-    private int currentPathIndex;
-    private float nextPathUpdateTime;
+    public Transform[] patrolPoints;  // Waypoints for patrolling
+    private int currentPatrolIndex = 0;
+    
+    public Transform player;
+    public float chaseRange = 20f;
+    public float attackRange = 10f;
+    public float fireRate = 1.5f;  // Time between shots
+
+    private NavMeshAgent agent;
+    private float lastShotTime;
+
+    public GameObject bulletPrefab;
+    public Transform cannonShootPoint;
 
     void Start()
     {
-        rb = GetComponent<Rigidbody>();
-        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ | RigidbodyConstraints.FreezePositionY;
-        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic; 
-
-        path = new NavMeshPath();
+        agent = GetComponent<NavMeshAgent>();
+        if (agent == null)
+        {
+            Debug.LogError("NavMeshAgent is missing on AI Tank!");
+        }
+        else
+        {
+            Debug.Log("NavMeshAgent found. Starting patrol.");
+            GoToNextPatrolPoint();
+        }
     }
 
     void Update()
     {
-        if (player == null) return;
+        // Decision making with Behavior Tree logic
+        if (CanAttack()) AttackPlayer();
+        else if (CanChase()) ChasePlayer();
+        else Patrol();
+    }
 
-        // Update path at intervals
-        if (Time.time >= nextPathUpdateTime)
+    // ➤ Patrol Logic
+    void Patrol()
+    {
+        if (!agent.pathPending && agent.remainingDistance < 1f)
         {
-            if (NavMesh.CalculatePath(transform.position, player.position, NavMesh.AllAreas, path))
-            {
-                currentPathIndex = 0;
-                nextPathUpdateTime = Time.time + pathUpdateInterval;
-            }
+            GoToNextPatrolPoint();
         }
     }
 
-    void FixedUpdate()
+    void GoToNextPatrolPoint()
     {
-        if (path.corners.Length > 1 && currentPathIndex < path.corners.Length)
-        {
-            Vector3 targetPosition = path.corners[currentPathIndex];
-            MoveTowards(targetPosition);
-
-            // If close to the current waypoint, move to the next
-            if (Vector3.Distance(transform.position, targetPosition) < 1f)
-            {
-                currentPathIndex++;
-            }
-        }
+        if (patrolPoints.Length == 0) return;
+        agent.destination = patrolPoints[currentPatrolIndex].position;
+        currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
     }
 
-    void MoveTowards(Vector3 targetPosition)
+    // ➤ Chase Logic
+    void ChasePlayer()
     {
-        Vector3 direction = (targetPosition - transform.position).normalized;
-        direction.y = 0; // Keep movement flat
+        agent.SetDestination(player.position);
+    }
 
-        // Move forward if not too close to the player
-        if (Vector3.Distance(transform.position, player.position) > stoppingDistance)
+    bool CanChase()
+    {
+        return Vector3.Distance(transform.position, player.position) < chaseRange;
+    }
+
+    // ➤ Attack Logic
+    void AttackPlayer()
+    {
+        
+
+        if (Time.time > lastShotTime + fireRate)
         {
-            rb.linearVelocity = transform.forward * speed;
-        }
-        else
-        {
-            rb.linearVelocity = Vector3.zero; // Stop when close
+            Shoot();
+            lastShotTime = Time.time;
         }
 
-        // Rotate toward the waypoint
-        Quaternion targetRotation = Quaternion.LookRotation(direction);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
+    }
+
+    bool CanAttack()
+    {
+        return Vector3.Distance(transform.position, player.position) < attackRange;
+    }
+
+    void Shoot()
+    {
+        Debug.Log("Tank Shoots!");
+        GameObject bullet = Instantiate(bulletPrefab, cannonShootPoint.position, cannonShootPoint.rotation);
+    }
+
+    void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.CompareTag("Bullet"))
+        {
+            Destroy(gameObject);
+        }
     }
 }
