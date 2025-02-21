@@ -270,16 +270,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 73f5a90a17ac79146a3408028a36ddcf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  patrolPoints:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
   player: {fileID: 0}
   chaseRange: 20
   attackRange: 150
-  fireRate: 1.5
+  fireRate: 0.5
+  movementSpeed: 30
+  rotationSpeed: 100
+  directionChangeInterval: 1
+  maxTurnDuration: 1.5
   bulletPrefab: {fileID: 1415176462792390616, guid: fbadecfc928b2d840885464ab4555392, type: 3}
-  cannonShootPoint: {fileID: 7771234768367779917}
+  cannonShootPoint: {fileID: 0}
 --- !u!54 &127389976284120386
 Rigidbody:
   m_ObjectHideFlags: 0

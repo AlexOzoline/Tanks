@@ -1,67 +1,97 @@
 using UnityEngine;
-using UnityEngine.AI;
 
 public class TankAI : MonoBehaviour
 {
-    private enum TaskStatus { Success, Failure, Running }
     private enum TankState { Patrol, Chase, Attack }
 
-    public Transform[] patrolPoints;  // Waypoints for patrolling
-    private int currentPatrolIndex = 0;
-    
     public Transform player;
     public float chaseRange = 20f;
     public float attackRange = 10f;
-    public float fireRate = 1.5f;  // Time between shots
+    public float fireRate = 1.5f;
+    public float movementSpeed = 5f;
+    public float rotationSpeed = 60f; // Degrees per second
+    public float directionChangeInterval = 3f;
+    public float maxTurnDuration = 1.5f; // Time spent turning
 
-    private NavMeshAgent agent;
+    private Rigidbody rb;
     private float lastShotTime;
+    private float nextDirectionChangeTime;
+    private bool movingForward = true; 
+    private bool isTurning = false;
+    private float turnEndTime;
+    private float targetTurnAngle;
+    private float turnDirection; // -1 = left, 1 = right
 
     public GameObject bulletPrefab;
     public Transform cannonShootPoint;
 
     void Start()
     {
-        agent = GetComponent<NavMeshAgent>();
-        if (agent == null)
-        {
-            Debug.LogError("NavMeshAgent is missing on AI Tank!");
-        }
-        else
-        {
-            Debug.Log("NavMeshAgent found. Starting patrol.");
-            GoToNextPatrolPoint();
-        }
+        rb = GetComponent<Rigidbody>();
+        nextDirectionChangeTime = Time.time + directionChangeInterval;
+
+        cannonShootPoint = transform.Find("tanktopfixed/CannonShootPoint"); 
     }
 
     void Update()
     {
-        // Decision making with Behavior Tree logic
         if (CanAttack()) AttackPlayer();
         else if (CanChase()) ChasePlayer();
-        else Patrol();
+        else RandomMovement();
     }
 
-    // ➤ Patrol Logic
-    void Patrol()
+    // ➤ Random Movement Logic
+    void RandomMovement()
     {
-        if (!agent.pathPending && agent.remainingDistance < 1f)
+        if (Time.time > nextDirectionChangeTime)
         {
-            GoToNextPatrolPoint();
+            StartTurning();
+            movingForward = Random.value > 0.1f; // xx% chance to move backward instead
+            nextDirectionChangeTime = Time.time + directionChangeInterval;
+        }
+
+        if (isTurning)
+        {
+            PerformTurning();
+        }
+
+        MoveTank();
+    }
+
+    void MoveTank()
+    {
+        float moveDirection = movingForward ? 1f : -1f;
+        rb.linearVelocity = transform.forward * moveDirection * movementSpeed;
+    }
+
+    void StartTurning()
+    {
+        isTurning = true;
+        turnEndTime = Time.time + Random.Range(0.5f, maxTurnDuration); // Random turn duration
+        turnDirection = Random.value > 0.5f ? 1f : -1f; // Random left or right
+        targetTurnAngle = turnDirection * rotationSpeed;
+    }
+
+    void PerformTurning()
+    {
+        if (Time.time < turnEndTime)
+        {
+            transform.Rotate(Vector3.up, targetTurnAngle * Time.deltaTime);
+        }
+        else
+        {
+            isTurning = false;
         }
     }
 
-    void GoToNextPatrolPoint()
-    {
-        if (patrolPoints.Length == 0) return;
-        agent.destination = patrolPoints[currentPatrolIndex].position;
-        currentPatrolIndex = (currentPatrolIndex + 1) % patrolPoints.Length;
-    }
-
-    // ➤ Chase Logic
+    // ➤ Chase Logic (Turns towards player gradually)
     void ChasePlayer()
     {
-        agent.SetDestination(player.position);
+        Vector3 toPlayer = (player.position - transform.position).normalized;
+        Quaternion targetRotation = Quaternion.LookRotation(toPlayer);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+
+        rb.linearVelocity = transform.forward * movementSpeed;
     }
 
     bool CanChase()
@@ -72,25 +102,31 @@ public class TankAI : MonoBehaviour
     // ➤ Attack Logic
     void AttackPlayer()
     {
-        
 
         if (Time.time > lastShotTime + fireRate)
         {
             Shoot();
             lastShotTime = Time.time;
         }
-
     }
 
     bool CanAttack()
     {
-        return Vector3.Distance(transform.position, player.position) < attackRange;
+        if (Vector3.Distance(transform.position, player.position) > attackRange) return false;
+
+        RaycastHit hit;
+        Vector3 directionToPlayer = (player.position - transform.position).normalized;
+        if (Physics.Raycast(transform.position + Vector3.up * 1.5f, directionToPlayer, out hit, attackRange))
+        {
+            return hit.transform == player;
+        }
+        return false;
     }
 
     void Shoot()
     {
         Debug.Log("Tank Shoots!");
-        GameObject bullet = Instantiate(bulletPrefab, cannonShootPoint.position, cannonShootPoint.rotation);
+        Instantiate(bulletPrefab, cannonShootPoint.position, cannonShootPoint.rotation);
     }
 
     void OnCollisionEnter(Collision collision)
@@ -98,6 +134,12 @@ public class TankAI : MonoBehaviour
         if (collision.gameObject.CompareTag("Bullet"))
         {
             Destroy(gameObject);
+        }
+
+        else if (collision.gameObject.CompareTag("Obstacle"))
+        {
+            movingForward = !movingForward;
+            MoveTank();
         }
     }
 }
