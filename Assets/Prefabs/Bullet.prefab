@@ -149,3 +149,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bulletSpeed: 100
   maxBounces: 3
+  bulletTrailPrefab: {fileID: 5935097363657220645, guid: 54ceb279e02d9b44686945156ba632bc, type: 3}
