@@ -2,21 +2,22 @@ using UnityEngine;
 
 public class TankAI : MonoBehaviour
 {
-    private enum TankState { Patrol, Chase, Attack }
+    private enum TankState { Patrol, Chase, Attack, SeekCover }
 
     public Transform player;
-    public float chaseRange = 20f;
+    public float chaseRange = 100f;
     public float attackRange = 10f;
     public float fireRate = 1.5f;
     public float movementSpeed = 5f;
     public float rotationSpeed = 60f; // Degrees per second
     public float directionChangeInterval = 3f;
     public float maxTurnDuration = 1.5f; // Time spent turning
+    public float coverCheckRadius = 15f; // Distance to look for cover
 
     private Rigidbody rb;
     private float lastShotTime;
     private float nextDirectionChangeTime;
-    private bool movingForward = true; 
+    private bool movingForward = true;
     private bool isTurning = false;
     private float turnEndTime;
     private float targetTurnAngle;
@@ -25,22 +26,24 @@ public class TankAI : MonoBehaviour
     public GameObject bulletPrefab;
     public Transform cannonShootPoint;
 
+    private Vector3 coverTarget; // Target position for cover
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         nextDirectionChangeTime = Time.time + directionChangeInterval;
 
-        cannonShootPoint = transform.Find("tanktopfixed/CannonShootPoint"); 
+        cannonShootPoint = transform.Find("tanktopfixed/CannonShootPoint");
     }
 
     void Update()
     {
         if (CanAttack()) AttackPlayer();
-        else if (CanChase()) ChasePlayer();
+        else if (CanSeekCover()) SeekCover();
         else RandomMovement();
     }
 
-    // ➤ Random Movement Logic
+    // Random Movement Logic
     void RandomMovement()
     {
         if (Time.time > nextDirectionChangeTime)
@@ -84,28 +87,21 @@ public class TankAI : MonoBehaviour
         }
     }
 
-    // ➤ Chase Logic (Turns towards player gradually)
-    void ChasePlayer()
-    {
-        Vector3 toPlayer = (player.position - transform.position).normalized;
-        Quaternion targetRotation = Quaternion.LookRotation(toPlayer);
-        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-
-        rb.linearVelocity = transform.forward * movementSpeed;
-    }
-
-    bool CanChase()
-    {
-        return Vector3.Distance(transform.position, player.position) < chaseRange;
-    }
 
     // ➤ Attack Logic
     void AttackPlayer()
     {
-
         if (Time.time > lastShotTime + fireRate)
         {
-            Shoot();
+            Vector3 shootDirection = (player.position - cannonShootPoint.position).normalized;
+            Vector3 bounceDirection;
+
+            
+            if (CanAttack()) 
+            {
+                Shoot(); // Take a normal shot
+            }
+
             lastShotTime = Time.time;
         }
     }
@@ -126,7 +122,62 @@ public class TankAI : MonoBehaviour
     void Shoot()
     {
         Debug.Log("Tank Shoots!");
+        // Shoot a regular shot
         Instantiate(bulletPrefab, cannonShootPoint.position, cannonShootPoint.rotation);
+
+    }
+
+    
+
+    // Seek Cover Logic
+    void SeekCover()
+    {
+        Vector3 bestCoverPosition = FindCover();
+        if (bestCoverPosition != Vector3.zero)
+        {
+            MoveToCoverOppositePlayer(bestCoverPosition);
+        }
+        else
+        {
+            RandomMovement(); // If no cover found, continue random movement
+        }
+    }
+
+    bool CanSeekCover()
+    {
+        return Vector3.Distance(transform.position, player.position) < chaseRange;
+    }
+
+    Vector3 FindCover()
+    {
+        // Look for objects within a given range (you can use layer masks to filter obstacles)
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, coverCheckRadius);
+        foreach (var collider in hitColliders)
+        {
+            // Check if the object can act as cover (just an example condition)
+            if (collider.CompareTag("Obstacle")) // Assuming obstacles are tagged "Obstacle"
+            {
+                return collider.transform.position; // Find nearest obstacle cover
+            }
+        }
+        return Vector3.zero; // No cover found
+    }
+
+    void MoveToCoverOppositePlayer(Vector3 coverPosition)
+    {
+        // Calculate the direction from the cover to the player
+        Vector3 directionToPlayer = (player.position - coverPosition).normalized;
+
+        // Now we need to move to the opposite side of the cover
+        // Calculate a point on the opposite side of the cover by moving away from the player
+        Vector3 coverEscapePosition = coverPosition - directionToPlayer * 5f; // Move 5 units away from the player
+
+        // Move towards the escape position
+        Vector3 directionToMove = (coverEscapePosition - transform.position).normalized;
+        Quaternion targetRotation = Quaternion.LookRotation(directionToMove);
+        transform.rotation = Quaternion.RotateTowards(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+
+        rb.linearVelocity = transform.forward * movementSpeed;
     }
 
     void OnCollisionEnter(Collision collision)
@@ -135,7 +186,6 @@ public class TankAI : MonoBehaviour
         {
             Destroy(gameObject);
         }
-
         else if (collision.gameObject.CompareTag("Obstacle"))
         {
             movingForward = !movingForward;
